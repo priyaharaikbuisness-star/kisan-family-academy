@@ -95,11 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
+    getRedirectResult(auth).catch((err) => {
+      console.error("Redirect error:", err?.code);
+    });
     const unsubscribe = onAuthStateChanged(auth, async (fUser) => {
       setFirebaseUser(fUser);
       if (fUser) {
-        await loadUser(fUser);
+        try {
+          await loadUser(fUser);
+        } catch (err) {
+          console.error("Load user error:", err);
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
