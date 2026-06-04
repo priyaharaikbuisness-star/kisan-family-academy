@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Kisan Family Academy"
+version = "1.0.0"
+id = "artifacts/kisan-academy"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22853
+
+[services.development]
+run = "pnpm --filter @workspace/kisan-academy run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kisan-academy", "run", "build" ]
+publicDir = "artifacts/kisan-academy/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22853"
+BASE_PATH = "/"
