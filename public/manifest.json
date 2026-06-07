@@ -1,20 +1,26 @@
 {
-  "name": "Kisan Family Academy",
-  "short_name": "KFA",
-  "description": "Apple Farming Knowledge Hub by Priya Haraik Ventures",
-  "start_url": "/",
-  "display": "standalone",
   "background_color": "#ffffff",
+  "description": "Apple Farming Knowledge Hub by Priya Haraik Ventures",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "kisan-family-academy.pages",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "kisan-family-academy.pages",
+  "start_url": "/",
   "theme_color": "#1B5E20",
   "icons": [
     {
-      "src": "/icon-192.png.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512.png.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "https://kisan-family-academy.pages.dev/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
     }
   ]
+}
