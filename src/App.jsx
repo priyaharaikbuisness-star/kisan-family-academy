@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { initializeApp } from "firebase/app";
 import {
-  getAuth, signInWithPopup, GoogleAuthProvider,
+  getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
   signOut as fbSignOut, onAuthStateChanged
 } from "firebase/auth";
 import {
@@ -209,19 +209,19 @@ function AuthProvider({ children }) {
     } catch(_) {}
   },[]);
 
-  useEffect(() =>
-    onAuthStateChanged(auth, async (fUser) => {
+useEffect(() =>
+  {    onAuthStateChanged(auth, async (fUser) => {
       setFbUser(fUser);
       if (fUser) await loadUser(fUser);
       else setUser(null);
       setLoading(false);
-    })
-  ,[loadUser]);
+    });
+  },[loadUser]);
 
   return (
     <AuthCtx.Provider value={{
       user, fbUser, isAdmin, loading,
-      signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
+      signInWithGoogle: () => signInWithRedirect(auth, new GoogleAuthProvider()),
       signOut: () => fbSignOut(auth),
       refreshUser: () => fbUser && loadUser(fbUser),
     }}>
