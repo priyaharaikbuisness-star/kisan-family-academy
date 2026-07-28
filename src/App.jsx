@@ -210,7 +210,8 @@ function AuthProvider({ children }) {
   },[]);
 
 useEffect(() =>
-  {    onAuthStateChanged(auth, async (fUser) => {
+  {    getRedirectResult(auth).then(r => console.log("REDIRECT SUCCESS:", r?.user?.email)).catch(err => console.error("REDIRECT ERROR:", err.code, err.message));
+    onAuthStateChanged(auth, async (fUser) => {
       setFbUser(fUser);
       if (fUser) await loadUser(fUser);
       else setUser(null);
