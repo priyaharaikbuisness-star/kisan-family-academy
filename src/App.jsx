@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { initializeApp } from "firebase/app";
 import {
-  getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
+  getAuth, signInWithPopup, GoogleAuthProvider,
   signOut as fbSignOut, onAuthStateChanged
 } from "firebase/auth";
 import {
@@ -210,19 +210,21 @@ function AuthProvider({ children }) {
   },[]);
 
 useEffect(() =>
-  {    getRedirectResult(auth).then(r => console.log("REDIRECT SUCCESS:", r?.user?.email)).catch(err => console.error("REDIRECT ERROR:", err.code, err.message));
-    onAuthStateChanged(auth, async (fUser) => {
+  {
+    const unsub = onAuthStateChanged(auth, async (fUser) => {
       setFbUser(fUser);
       if (fUser) await loadUser(fUser);
       else setUser(null);
       setLoading(false);
     });
+    return unsub;
   },[loadUser]);
 
   return (
     <AuthCtx.Provider value={{
       user, fbUser, isAdmin, loading,
-      signInWithGoogle: () => signInWithRedirect(auth, new GoogleAuthProvider()),
+      signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider())
+        .catch(err => console.error("SIGNIN ERROR:", err.code, err.message)),
       signOut: () => fbSignOut(auth),
       refreshUser: () => fbUser && loadUser(fbUser),
     }}>
