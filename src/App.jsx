@@ -660,21 +660,24 @@ function HomeScreen() {
   const cats   = [...new Set(videos.map(v=>v.category))];
   const byCat  = Object.fromEntries(cats.map(c=>[c,videos.filter(v=>v.category===c)]));
 
-  // ── Scroll hint: nudge horizontal rows right then back so new users
-  // discover there's more content to scroll to (Requirement: onboarding hint) ──
-  useEffect(()=>{
-    if (loading) return;
-    const t = setTimeout(()=>{
-      document.querySelectorAll(".hint-scroll").forEach((el,i)=>{
-        if (el.scrollWidth <= el.clientWidth) return; // nothing to hint if it doesn't overflow
-        setTimeout(()=>{
-          el.scrollTo({left:70,behavior:"smooth"});
-          setTimeout(()=>el.scrollTo({left:0,behavior:"smooth"}),500);
-        },i*180);
-      });
-    },700);
-    return ()=>clearTimeout(t);
-  },[loading,q]);
+  // ── Scroll-arrow support: each row registers its own scroll element here,
+  // keyed by section name, so the arrow button can scroll the right row ──
+  const rowRefs = useRef({});
+  const setRowRef = (key) => (el) => { if (el) rowRefs.current[key] = el; };
+  const scrollRow = (key) => {
+    const el = rowRefs.current[key];
+    if (el) el.scrollBy({ left: 220, behavior: "smooth" });
+  };
+  function RightArrowBtn({ rowKey }) {
+    return (
+      <button onClick={()=>scrollRow(rowKey)} aria-label="Scroll right"
+        className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform">
+        <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
@@ -725,8 +728,11 @@ function HomeScreen() {
           <>
             {continueW.length>0 && (
               <section className="mb-2">
-                <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("continueWatching")}</p>
-                <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                  <p className="text-xs font-bold text-primary">{t("continueWatching")}</p>
+                  <RightArrowBtn rowKey="continueW"/>
+                </div>
+                <div ref={setRowRef("continueW")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                   {continueW.map(v=>(
                     <div key={v.id} onClick={()=>setPath(`/player/${v.id}`)}
                       className="min-w-[280px] flex-shrink-0 bg-card border border-border rounded-xl p-3 flex gap-3 cursor-pointer">
@@ -750,8 +756,11 @@ function HomeScreen() {
               </section>
             )}
             <section className="mb-2">
-              <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("recentlyAdded")}</p>
-              <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+              <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                <p className="text-xs font-bold text-primary">{t("recentlyAdded")}</p>
+                <RightArrowBtn rowKey="recent"/>
+              </div>
+              <div ref={setRowRef("recent")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                 {loading
                   ? [1,2,3].map(i=><div key={i} className="min-w-[160px] flex-shrink-0"><div className="w-40 h-24 rounded-xl bg-card animate-pulse mb-2"/><div className="h-3 bg-card rounded animate-pulse w-28"/></div>)
                   : recent.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)
@@ -762,11 +771,14 @@ function HomeScreen() {
               const vs = byCat[cat];
               return (
                 <section key={cat} className="mb-2">
-                  <div className="px-5 pt-4 pb-2 flex items-center gap-2">
-                    <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
-                    <p className="text-xs font-bold text-primary">{cat.toUpperCase()}</p>
+                  <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
+                      <p className="text-xs font-bold text-primary">{cat.toUpperCase()}</p>
+                    </div>
+                    <RightArrowBtn rowKey={cat}/>
                   </div>
-                  <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                  <div ref={setRowRef(cat)} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                     {vs.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)}
                   </div>
                 </section>
