@@ -671,13 +671,35 @@ function HomeScreen() {
   function RightArrowBtn({ rowKey }) {
     return (
       <button onClick={()=>scrollRow(rowKey)} aria-label="Scroll right"
-        className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform">
-        <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
         </svg>
       </button>
     );
   }
+
+  // ── Feed-scroll effect: as the page is scrolled vertically, nudge each
+  // horizontal row a little to the left so more content peeks into view ──
+  const contentRef = useRef(null);
+  const lastScrollTop = useRef(0);
+  useEffect(()=>{
+    const container = contentRef.current;
+    if (!container) return;
+    lastScrollTop.current = container.scrollTop;
+    const onScroll = () => {
+      const delta = container.scrollTop - lastScrollTop.current;
+      lastScrollTop.current = container.scrollTop;
+      Object.values(rowRefs.current).forEach(el=>{
+        if (!el) return;
+        const max = el.scrollWidth - el.clientWidth;
+        if (max <= 0) return;
+        el.scrollLeft = Math.min(max, Math.max(0, el.scrollLeft + delta*0.25));
+      });
+    };
+    container.addEventListener("scroll", onScroll, { passive:true });
+    return ()=>container.removeEventListener("scroll", onScroll);
+  },[]);
 
   return (
     <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
@@ -715,7 +737,7 @@ function HomeScreen() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div ref={contentRef} className="flex-1 overflow-y-auto pb-24">
         {q.length>=2 ? (
           <div className="px-5">
             <p className="text-xs font-semibold text-primary mb-3">{results.length} results — "{q}"</p>
@@ -728,58 +750,58 @@ function HomeScreen() {
           <>
             {continueW.length>0 && (
               <section className="mb-2">
-                <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                  <p className="text-xs font-bold text-primary">{t("continueWatching")}</p>
+                <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("continueWatching")}</p>
+                <div className="relative">
+                  <div ref={setRowRef("continueW")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                    {continueW.map(v=>(
+                      <div key={v.id} onClick={()=>setPath(`/player/${v.id}`)}
+                        className="min-w-[280px] flex-shrink-0 bg-card border border-border rounded-xl p-3 flex gap-3 cursor-pointer">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 relative">
+                          <img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`} alt="" className="w-full h-full object-cover"/>
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground line-clamp-2">{v.title}</p>
+                          <p className="text-xs text-green-500 mt-0.5">{v.category}</p>
+                          <div className="mt-2 h-1 bg-border rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500" style={{width:`${progress[v.id]?.progress||0}%`}}/>
+                          </div>
+                          <p className="text-[10px] text-red-400 mt-1">{progress[v.id]?.progress||0}% {t("viewed")}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   <RightArrowBtn rowKey="continueW"/>
-                </div>
-                <div ref={setRowRef("continueW")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
-                  {continueW.map(v=>(
-                    <div key={v.id} onClick={()=>setPath(`/player/${v.id}`)}
-                      className="min-w-[280px] flex-shrink-0 bg-card border border-border rounded-xl p-3 flex gap-3 cursor-pointer">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 relative">
-                        <img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`} alt="" className="w-full h-full object-cover"/>
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground line-clamp-2">{v.title}</p>
-                        <p className="text-xs text-green-500 mt-0.5">{v.category}</p>
-                        <div className="mt-2 h-1 bg-border rounded-full overflow-hidden">
-                          <div className="h-full bg-red-500" style={{width:`${progress[v.id]?.progress||0}%`}}/>
-                        </div>
-                        <p className="text-[10px] text-red-400 mt-1">{progress[v.id]?.progress||0}% {t("viewed")}</p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </section>
             )}
             <section className="mb-2">
-              <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                <p className="text-xs font-bold text-primary">{t("recentlyAdded")}</p>
+              <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("recentlyAdded")}</p>
+              <div className="relative">
+                <div ref={setRowRef("recent")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                  {loading
+                    ? [1,2,3].map(i=><div key={i} className="min-w-[160px] flex-shrink-0"><div className="w-40 h-24 rounded-xl bg-card animate-pulse mb-2"/><div className="h-3 bg-card rounded animate-pulse w-28"/></div>)
+                    : recent.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)
+                  }
+                </div>
                 <RightArrowBtn rowKey="recent"/>
-              </div>
-              <div ref={setRowRef("recent")} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
-                {loading
-                  ? [1,2,3].map(i=><div key={i} className="min-w-[160px] flex-shrink-0"><div className="w-40 h-24 rounded-xl bg-card animate-pulse mb-2"/><div className="h-3 bg-card rounded animate-pulse w-28"/></div>)
-                  : recent.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)
-                }
               </div>
             </section>
             {!loading && cats.map(cat=>{
               const vs = byCat[cat];
               return (
                 <section key={cat} className="mb-2">
-                  <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
-                      <p className="text-xs font-bold text-primary">{cat.toUpperCase()}</p>
+                  <div className="px-5 pt-4 pb-2 flex items-center gap-2">
+                    <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
+                    <p className="text-xs font-bold text-primary">{cat.toUpperCase()}</p>
+                  </div>
+                  <div className="relative">
+                    <div ref={setRowRef(cat)} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                      {vs.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)}
                     </div>
                     <RightArrowBtn rowKey={cat}/>
-                  </div>
-                  <div ref={setRowRef(cat)} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
-                    {vs.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)}
                   </div>
                 </section>
               );
