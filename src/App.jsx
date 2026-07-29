@@ -186,6 +186,7 @@ function AuthProvider({ children }) {
   const isAdmin = ADMIN_EMAILS.includes(user?.email || "");
 
   const loadUser = useCallback(async (fUser) => {
+    console.log("LOADUSER: start for", fUser.uid, fUser.email);
     try {
       const ref  = doc(db,"users",fUser.uid);
       const snap = await getDoc(ref);
@@ -205,6 +206,7 @@ function AuthProvider({ children }) {
         await setDoc(ref,data);
       }
       setUser(data);
+      console.log("LOADUSER: success, accessStatus =", data.accessStatus);
       if (ADMIN_EMAILS.includes(data.email)) seedIfEmpty();
     } catch(e) { console.error("LOADUSER ERROR:", e?.code, e?.message); }
   },[]);
@@ -212,6 +214,7 @@ function AuthProvider({ children }) {
 useEffect(() =>
   {
     const unsub = onAuthStateChanged(auth, async (fUser) => {
+      console.log("AUTH STATE CHANGED:", fUser ? fUser.email : "no user");
       setFbUser(fUser);
       if (fUser) await loadUser(fUser);
       else setUser(null);
@@ -223,7 +226,19 @@ useEffect(() =>
   return (
     <AuthCtx.Provider value={{
       user, fbUser, isAdmin, loading,
-      signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
+      signInWithGoogle: () => {
+        console.log("LOGIN: opening Google popup...");
+        return Promise.race([
+          signInWithPopup(auth, new GoogleAuthProvider()).then(r => {
+            console.log("LOGIN: popup resolved for", r?.user?.email);
+            return r;
+          }),
+          new Promise((_, reject) => setTimeout(
+            () => reject({ code: "auth/timeout", message: "Sign-in popup took too long to respond." }),
+            15000
+          )),
+        ]);
+      },
       signOut: () => fbSignOut(auth),
       refreshUser: () => fbUser && loadUser(fbUser),
     }}>
@@ -269,6 +284,14 @@ const kfpWA = (m) => { const plan=m.plan==="yearly"?"Yearly — ₹499":"Monthly
 function Spinner() { return <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"/>; }
 
 function PHLogo({ size=40 }) {
+  const hasRealLogo = !PRIYA_HARAIK_LOGO.includes("LOGO_BASE64_PLACEHOLDER");
+  if (!hasRealLogo) {
+    return (
+      <div style={{width:size,height:size*0.5,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <span style={{fontWeight:700,color:"#1B5E20",fontSize:size*0.22}}>Priya Haraik</span>
+      </div>
+    );
+  }
   return <img src={PRIYA_HARAIK_LOGO} alt="Priya Haraik" style={{width:size,height:"auto",objectFit:"contain"}}/>;
 }
 
@@ -476,7 +499,12 @@ function LoginScreen() {
   const login = async () => {
     setBusy(true); setErr("");
     try { await signInWithGoogle(); }
-    catch(e) { console.error("LOGIN ERROR:", e?.code, e?.message); setErr(e?.code==="auth/popup-closed-by-user"?"Sign in cancel ho gaya.":"Sign in fail hua. Dobara try karein."); }
+    catch(e) {
+      console.error("LOGIN ERROR:", e?.code, e?.message);
+      if (e?.code==="auth/popup-closed-by-user") setErr("Sign in cancel ho gaya.");
+      else if (e?.code==="auth/timeout") setErr("Sign in mein bahut time lag raha hai. Apna internet check karke dobara try karein.");
+      else setErr("Sign in fail hua. Dobara try karein.");
+    }
     finally { setBusy(false); }
   };
 
