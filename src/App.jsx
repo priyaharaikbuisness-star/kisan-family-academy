@@ -660,6 +660,22 @@ function HomeScreen() {
   const cats   = [...new Set(videos.map(v=>v.category))];
   const byCat  = Object.fromEntries(cats.map(c=>[c,videos.filter(v=>v.category===c)]));
 
+  // ── Scroll hint: nudge horizontal rows right then back so new users
+  // discover there's more content to scroll to (Requirement: onboarding hint) ──
+  useEffect(()=>{
+    if (loading) return;
+    const t = setTimeout(()=>{
+      document.querySelectorAll(".hint-scroll").forEach((el,i)=>{
+        if (el.scrollWidth <= el.clientWidth) return; // nothing to hint if it doesn't overflow
+        setTimeout(()=>{
+          el.scrollTo({left:70,behavior:"smooth"});
+          setTimeout(()=>el.scrollTo({left:0,behavior:"smooth"}),500);
+        },i*180);
+      });
+    },700);
+    return ()=>clearTimeout(t);
+  },[loading,q]);
+
   return (
     <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
       {/* Double-tap exit toast */}
@@ -710,7 +726,7 @@ function HomeScreen() {
             {continueW.length>0 && (
               <section className="mb-2">
                 <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("continueWatching")}</p>
-                <div className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                   {continueW.map(v=>(
                     <div key={v.id} onClick={()=>setPath(`/player/${v.id}`)}
                       className="min-w-[280px] flex-shrink-0 bg-card border border-border rounded-xl p-3 flex gap-3 cursor-pointer">
@@ -735,7 +751,7 @@ function HomeScreen() {
             )}
             <section className="mb-2">
               <p className="px-5 pt-4 pb-2 text-xs font-bold text-primary">{t("recentlyAdded")}</p>
-              <div className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+              <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                 {loading
                   ? [1,2,3].map(i=><div key={i} className="min-w-[160px] flex-shrink-0"><div className="w-40 h-24 rounded-xl bg-card animate-pulse mb-2"/><div className="h-3 bg-card rounded animate-pulse w-28"/></div>)
                   : recent.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)
@@ -750,7 +766,7 @@ function HomeScreen() {
                     <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
                     <p className="text-xs font-bold text-primary">{cat.toUpperCase()}</p>
                   </div>
-                  <div className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                  <div className="hint-scroll flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
                     {vs.map(v=><VideoCard key={v.id} video={v} progress={progress[v.id]}/>)}
                   </div>
                 </section>
