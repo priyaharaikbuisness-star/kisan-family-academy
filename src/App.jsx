@@ -223,8 +223,7 @@ useEffect(() =>
   return (
     <AuthCtx.Provider value={{
       user, fbUser, isAdmin, loading,
-      signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider())
-        .catch(err => console.error("SIGNIN ERROR:", err.code, err.message)),
+      signInWithGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
       signOut: () => fbSignOut(auth),
       refreshUser: () => fbUser && loadUser(fbUser),
     }}>
@@ -477,7 +476,7 @@ function LoginScreen() {
   const login = async () => {
     setBusy(true); setErr("");
     try { await signInWithGoogle(); }
-    catch(e) { setErr(e?.code==="auth/popup-closed-by-user"?"Sign in cancel ho gaya.":"Sign in fail hua. Dobara try karein."); }
+    catch(e) { console.error("LOGIN ERROR:", e?.code, e?.message); setErr(e?.code==="auth/popup-closed-by-user"?"Sign in cancel ho gaya.":"Sign in fail hua. Dobara try karein."); }
     finally { setBusy(false); }
   };
 
