@@ -206,7 +206,7 @@ function AuthProvider({ children }) {
       }
       setUser(data);
       if (ADMIN_EMAILS.includes(data.email)) seedIfEmpty();
-    } catch(_) {}
+    } catch(e) { console.error("LOADUSER ERROR:", e?.code, e?.message); }
   },[]);
 
 useEffect(() =>
