@@ -33,6 +33,16 @@ const ADMIN_EMAILS = (
   "haraikpriya@gmail.com,priyaharaikbuisness@gmail.com,uditsharmas9736@gmail.com"
 ).split(",").map(e => e.trim());
 
+// ── Courses (multi-course support) ─────────────────────────────────
+// Add a new course here anytime — it will show up in the Courses tab
+// and can be assigned to videos from the Admin > Videos panel.
+const COURSES = [
+  { id:"kisan-family",    title:"Kisan Family",    tagline:"Apple Farming Complete Course" },
+  { id:"natural-farming", title:"Natural Farming", tagline:"Prakritik Kheti Course" },
+];
+const DEFAULT_COURSE = COURSES[0].id;
+const WHATSAPP_NUMBER = "918580443542"; // Priya Haraik Ventures contact (from Terms & Conditions)
+
 // ── LOGO ──────────────────────────────────────────────────────────
 // INSTRUCTION: Run this ONE command in your project root to embed logo:
 //   node -e "const fs=require('fs');const b64=fs.readFileSync('src/assets/logo.png').toString('base64');const content=fs.readFileSync('src/App.jsx','utf8').replace('LOGO_BASE64_PLACEHOLDER',b64);fs.writeFileSync('src/App.jsx',content);"
@@ -41,11 +51,11 @@ const PRIYA_HARAIK_LOGO = "data:image/png;base64,LOGO_BASE64_PLACEHOLDER";
 
 // ── Seed Videos ───────────────────────────────────────────────────
 const SEED_VIDEOS = [
-  { id:"v1", title:"Apple Farming Introduction",  description:"Seb ki kheti ke basic tarike seekhein. Rootstock, spacing aur soil preparation ke baare mein jaankari.",              youtubeId:"rSr185gCqmE", category:"Basics",           categoryColor:"#1B5E20", duration:"18:24", tags:["basics"],        order:1, createdAt:"2025-01-10", isNew:false },
-  { id:"v2", title:"Rootstock Selection Guide",   description:"Sahi rootstock kaise chunein apne baag ke liye. MM106, M9, M111 ke fayde aur nuqsaan.",                              youtubeId:"IzlIXUgD5zk", category:"Basics",           categoryColor:"#1B5E20", duration:"22:10", tags:["rootstock"],     order:2, createdAt:"2025-02-01", isNew:true  },
-  { id:"v3", title:"Scab Disease Control",        description:"Scab bimari ko kaise roke. Fungicide spray schedule aur organic treatment ke tarike.",                              youtubeId:"EVqTyWMxrdo", category:"Disease Mgmt",      categoryColor:"#B71C1C", duration:"25:12", tags:["disease","scab"], order:3, createdAt:"2025-02-15", isNew:false },
-  { id:"v4", title:"Pruning Techniques HDP",      description:"High density planting ke liye pruning techniques. Branch angle, spur management aur renewal pruning.",             youtubeId:"1oy2m4QIWIE", category:"Canopy Mgmt",       categoryColor:"#1A237E", duration:"31:20", tags:["pruning","HDP"],  order:4, createdAt:"2025-03-01", isNew:true  },
-  { id:"v5", title:"Jeevamrit Preparation",       description:"Apne baag ke liye natural bio-stimulant banayein. Cow dung, cow urine, jaggery aur soil mix karke taiyaar karein.", youtubeId:"FNiap8YelJc", category:"Natural Farming",   categoryColor:"#2E7D32", duration:"22:40", tags:["natural"],       order:5, createdAt:"2025-03-20", isNew:true  },
+  { id:"v1", title:"Apple Farming Introduction",  description:"Seb ki kheti ke basic tarike seekhein. Rootstock, spacing aur soil preparation ke baare mein jaankari.",              youtubeId:"rSr185gCqmE", category:"Basics",           categoryColor:"#1B5E20", duration:"18:24", tags:["basics"],        order:1, createdAt:"2025-01-10", isNew:false, courseId:"kisan-family" },
+  { id:"v2", title:"Rootstock Selection Guide",   description:"Sahi rootstock kaise chunein apne baag ke liye. MM106, M9, M111 ke fayde aur nuqsaan.",                              youtubeId:"IzlIXUgD5zk", category:"Basics",           categoryColor:"#1B5E20", duration:"22:10", tags:["rootstock"],     order:2, createdAt:"2025-02-01", isNew:true,  courseId:"kisan-family" },
+  { id:"v3", title:"Scab Disease Control",        description:"Scab bimari ko kaise roke. Fungicide spray schedule aur organic treatment ke tarike.",                              youtubeId:"EVqTyWMxrdo", category:"Disease Mgmt",      categoryColor:"#B71C1C", duration:"25:12", tags:["disease","scab"], order:3, createdAt:"2025-02-15", isNew:false, courseId:"kisan-family" },
+  { id:"v4", title:"Pruning Techniques HDP",      description:"High density planting ke liye pruning techniques. Branch angle, spur management aur renewal pruning.",             youtubeId:"1oy2m4QIWIE", category:"Canopy Mgmt",       categoryColor:"#1A237E", duration:"31:20", tags:["pruning","HDP"],  order:4, createdAt:"2025-03-01", isNew:true,  courseId:"kisan-family" },
+  { id:"v5", title:"Jeevamrit Preparation",       description:"Apne baag ke liye natural bio-stimulant banayein. Cow dung, cow urine, jaggery aur soil mix karke taiyaar karein.", youtubeId:"FNiap8YelJc", category:"Natural Farming",   categoryColor:"#2E7D32", duration:"22:40", tags:["natural"],       order:5, createdAt:"2025-03-20", isNew:true,  courseId:"natural-farming" },
 ];
 async function seedIfEmpty() {
   try {
@@ -201,6 +211,7 @@ function AuthProvider({ children }) {
           uid:fUser.uid, email:fUser.email||"", name:fUser.displayName||"Farmer",
           photoURL:fUser.photoURL||"", joinDate:now, lastActive:now,
           accessStatus: ADMIN_EMAILS.includes(fUser.email||"") ? "approved" : "pending",
+          courses: [DEFAULT_COURSE],
           language:"en",
         };
         await setDoc(ref,data);
@@ -280,6 +291,20 @@ const fmtDate = (iso) => { try { const d=new Date(iso); return `${String(d.getDa
 const kfpStatus = (m) => { const days=Math.floor((Date.now()-new Date(m.lastRenewed))/86400000); const limit=m.plan==="yearly"?365:30; const left=limit-days; if(left>7)return{label:`${left} din bache`,color:"green",left}; if(left>0)return{label:`${left} din mein due`,color:"yellow",left}; return{label:`${Math.abs(left)} din late`,color:"red",left}; };
 const kfpWA = (m) => { const plan=m.plan==="yearly"?"Yearly — ₹499":"Monthly — ₹99"; const due=new Date(new Date(m.lastRenewed).getTime()+(m.plan==="yearly"?365:30)*86400000); const df=`${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}/${due.getFullYear()}`; const msg=`Namaste ${m.name} ji! 🌿\n\nAapki *Kisan Family Pro* membership renewal ka time aa gaya hai.\n\n📋 Plan: ${plan}\n📅 Due Date: ${df}\n\nRenewal ke liye payment karein:\n💳 UPI: priyaharaikbuisness@okaxis\n\nPayment ke baad screenshot zaroor bhejein. 🙏\n\n— Priya Haraik Ventures`; return `https://wa.me/91${m.phone}?text=${encodeURIComponent(msg)}`; };
 
+// ── Multi-course access helpers ─────────────────────────────────────
+// Existing users approved before multi-course support was added won't have
+// a `courses` array yet — treat that as legacy access to the original course.
+const courseInfo = (id) => COURSES.find(c=>c.id===id) || { id, title:id, tagline:"" };
+const userCourseIds = (user, isAdmin) => {
+  if (isAdmin) return COURSES.map(c=>c.id);
+  if (Array.isArray(user?.courses) && user.courses.length>0) return user.courses;
+  return [DEFAULT_COURSE]; // legacy fallback
+};
+const courseWA = (course, userEmail) => {
+  const msg = `Namaste! 🌿\n\nMujhe *${course.title}* course ke baare mein jaankari chahiye aur main ise purchase karna chahta/chahti hoon.\n\nMera app email: ${userEmail||""}\n\n— Kisan Family Academy se`;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+};
+
 // ── Base Components ────────────────────────────────────────────────
 function Spinner() { return <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"/>; }
 
@@ -327,18 +352,22 @@ function BottomNav() {
 }
 
 // ── Video Card ─────────────────────────────────────────────────────
-function VideoCard({ video, compact=false, progress=null }) {
+function VideoCard({ video, compact=false, progress=null, locked=false, onLockedClick }) {
   const { setPath } = useRouter();
   const thumb = `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`;
   const pct = progress?.progress || 0;
+  const handleClick = () => { if (locked) onLockedClick?.(video); else setPath(`/player/${video.id}`); };
 
   if (compact) return (
-    <div onClick={()=>setPath(`/player/${video.id}`)}
-      className="flex gap-3 items-center p-3 bg-card border border-border rounded-xl cursor-pointer hover:border-primary/50 transition-colors">
+    <div onClick={handleClick}
+      className={`flex gap-3 items-center p-3 bg-card border border-border rounded-xl cursor-pointer hover:border-primary/50 transition-colors ${locked?"opacity-90":""}`}>
       <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 relative">
-        <img src={thumb} alt="" className="w-full h-full object-cover" onError={e=>e.target.style.display="none"}/>
+        <img src={thumb} alt="" className={`w-full h-full object-cover ${locked?"blur-[1px]":""}`} onError={e=>e.target.style.display="none"}/>
         <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+          {locked
+            ? <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3H9z"/></svg>
+            : <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+          }
         </div>
         {pct > 0 && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
@@ -354,21 +383,30 @@ function VideoCard({ video, compact=false, progress=null }) {
           {pct > 0 && <span className="text-[10px] text-red-400 font-medium">{pct}% viewed</span>}
         </div>
       </div>
-      {video.isNew && <span className="text-[9px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded flex-shrink-0">NEW</span>}
+      {locked
+        ? <span className="text-[9px] font-bold bg-gray-500 text-white px-1.5 py-0.5 rounded flex-shrink-0">LOCKED</span>
+        : video.isNew && <span className="text-[9px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded flex-shrink-0">NEW</span>
+      }
     </div>
   );
 
   return (
-    <div onClick={()=>setPath(`/player/${video.id}`)} className="min-w-[160px] flex-shrink-0 cursor-pointer group">
+    <div onClick={handleClick} className="min-w-[160px] flex-shrink-0 cursor-pointer group">
       <div className="relative w-40 h-24 rounded-xl overflow-hidden mb-2">
-        <img src={thumb} alt="" className="w-full h-full object-cover"
+        <img src={thumb} alt="" className={`w-full h-full object-cover ${locked?"blur-[1px]":""}`}
           onError={e=>{e.target.style.display="none"; e.target.parentElement.style.background=video.categoryColor+"44";}}/>
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 flex items-center justify-center">
           <div className="w-9 h-9 rounded-full bg-primary/80 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+            {locked
+              ? <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3H9z"/></svg>
+              : <svg className="w-4 h-4 text-white ml-0.5" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+            }
           </div>
         </div>
-        {video.isNew && <span className="absolute top-2 left-2 text-[9px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded">NEW</span>}
+        {locked
+          ? <span className="absolute top-2 left-2 text-[9px] font-bold bg-gray-600 text-white px-1.5 py-0.5 rounded">LOCKED</span>
+          : video.isNew && <span className="absolute top-2 left-2 text-[9px] font-bold bg-orange-500 text-white px-1.5 py-0.5 rounded">NEW</span>
+        }
         <span className="absolute bottom-2 right-2 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">{video.duration}</span>
         {pct > 0 && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40">
@@ -378,6 +416,32 @@ function VideoCard({ video, compact=false, progress=null }) {
       </div>
       <p className="text-xs text-foreground line-clamp-2 leading-snug">{video.title}</p>
       {pct > 0 && <p className="text-[10px] text-red-400 mt-0.5">{pct}% viewed</p>}
+    </div>
+  );
+}
+
+// ── Locked Course Modal (shown when a student taps a video from a
+// course they haven't purchased) ────────────────────────────────────
+function LockedCourseModal({ video, userEmail, onClose }) {
+  if (!video) return null;
+  const course = courseInfo(video.courseId || DEFAULT_COURSE);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="w-full max-w-[420px] bg-card rounded-t-3xl sm:rounded-3xl p-6 flex flex-col items-center gap-4" onClick={e=>e.stopPropagation()}>
+        <div className="w-14 h-14 rounded-full bg-gray-500/15 flex items-center justify-center">
+          <svg className="w-7 h-7 text-gray-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3H9z"/></svg>
+        </div>
+        <div className="text-center">
+          <h3 className="text-base font-bold text-foreground mb-1">Ye video "{course.title}" course mein hai</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">Aapke paas abhi is course ka access nahi hai. Agar aap "{course.title}" lena chahte hain, hamein WhatsApp par message karein.</p>
+        </div>
+        <a href={courseWA(course, userEmail)} target="_blank" rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-medium transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp par message karein
+        </a>
+        <button onClick={onClose} className="text-xs text-muted-foreground underline">Band karein</button>
+      </div>
     </div>
   );
 }
@@ -600,13 +664,14 @@ function AccessPendingScreen() {
 // HOME SCREEN (Requirement #6: Continue Watching sorted by lastViewedAt)
 // ================================================================
 function HomeScreen() {
-  const { user }    = useAuth();
+  const { user, isAdmin } = useAuth();
   const { setPath } = useRouter();
   const { t }       = useLang();
   const [videos,   setVideos]   = useState([]);
   const [progress, setProgress] = useState({});
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState("");
+  const [lockedVideo, setLockedVideo] = useState(null);
 
   // ── Back button double-tap to exit (Requirement #11) ────────────
   const lastBackRef = useRef(0);
@@ -644,21 +709,28 @@ function HomeScreen() {
   },[user?.uid]);
 
   const name = user?.name?.split(" ")[0]||"Farmer";
+  const myCourseIds = userCourseIds(user, isAdmin);
+  const myVideos     = videos.filter(v=>myCourseIds.includes(v.courseId||DEFAULT_COURSE));
+  const lockedVideos = videos.filter(v=>!myCourseIds.includes(v.courseId||DEFAULT_COURSE));
+  const lockedByCourse = Object.fromEntries(
+    [...new Set(lockedVideos.map(v=>v.courseId||DEFAULT_COURSE))].map(cid=>[cid, lockedVideos.filter(v=>(v.courseId||DEFAULT_COURSE)===cid)])
+  );
+
   const q    = search.trim();
-  const results = q.length>=2 ? videos.filter(v=>
+  const results = q.length>=2 ? myVideos.filter(v=>
     v.title.toLowerCase().includes(q.toLowerCase())||
     v.category.toLowerCase().includes(q.toLowerCase())||
     (v.tags||[]).some(tag=>tag.toLowerCase().includes(q.toLowerCase()))
   ) : [];
 
   // Requirement #6: Sort by last_viewed_timestamp DESCENDING (most recent first)
-  const continueW = videos
+  const continueW = myVideos
     .filter(v=>progress[v.id]&&!progress[v.id].watched&&(progress[v.id].progress||0)>0)
     .sort((a,b)=>new Date(progress[b.id]?.lastViewedAt||0)-new Date(progress[a.id]?.lastViewedAt||0));
 
-  const recent = [...videos].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
-  const cats   = [...new Set(videos.map(v=>v.category))];
-  const byCat  = Object.fromEntries(cats.map(c=>[c,videos.filter(v=>v.category===c)]));
+  const recent = [...myVideos].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+  const cats   = [...new Set(myVideos.map(v=>v.category))];
+  const byCat  = Object.fromEntries(cats.map(c=>[c,myVideos.filter(v=>v.category===c)]));
 
   // ── Scroll-arrow support: each row registers its own scroll element here,
   // keyed by section name, so the arrow button can scroll the right row ──
@@ -806,23 +878,43 @@ function HomeScreen() {
                 </section>
               );
             })}
+            {!loading && Object.keys(lockedByCourse).map(cid=>{
+              const course = courseInfo(cid);
+              const vs = lockedByCourse[cid];
+              return (
+                <section key={cid} className="mb-2">
+                  <div className="px-5 pt-4 pb-2 flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-muted-foreground" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3H9z"/></svg>
+                    <p className="text-xs font-bold text-muted-foreground">{course.title.toUpperCase()}</p>
+                  </div>
+                  <div className="relative">
+                    <div ref={setRowRef(`locked-${cid}`)} className="flex gap-3 overflow-x-auto px-5 pb-3" style={{scrollbarWidth:"none"}}>
+                      {vs.map(v=><VideoCard key={v.id} video={v} locked onLockedClick={setLockedVideo}/>)}
+                    </div>
+                    <RightArrowBtn rowKey={`locked-${cid}`}/>
+                  </div>
+                </section>
+              );
+            })}
           </>
         )}
       </div>
+      {lockedVideo && <LockedCourseModal video={lockedVideo} userEmail={user?.email} onClose={()=>setLockedVideo(null)}/>}
       <BottomNav/>
     </div>
   );
 }
 
 // ================================================================
-// COURSES SCREEN (Requirement #4: Single card, See Content button)
+// COURSES SCREEN (Requirement #4: One card per course, See Content button)
 // ================================================================
 function CoursesScreen() {
+  const { user, isAdmin } = useAuth();
   const { setPath } = useRouter();
   const { t }       = useLang();
   const [videos, setVideos]     = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [showList, setShowList] = useState(false);
+  const [showList, setShowList] = useState(null); // holds courseId, or null
 
   useEffect(()=>{
     getDocs(query(collection(db,"videos"),orderBy("order")))
@@ -830,44 +922,50 @@ function CoursesScreen() {
       .catch(()=>{}).finally(()=>setLoading(false));
   },[]);
 
-  const cats = [...new Set(videos.map(v=>v.category))];
-  const byCat = Object.fromEntries(cats.map(c=>[c,videos.filter(v=>v.category===c)]));
+  const myCourseIds = userCourseIds(user, isAdmin);
+  const videosFor = (cid) => videos.filter(v=>(v.courseId||DEFAULT_COURSE)===cid);
 
-  // Sub-screen: playlist/chapter list (opens ONLY after See Content click)
-  if (showList) return (
-    <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
-      <div className="px-5 pt-10 pb-4 border-b border-border flex items-center gap-3">
-        <button onClick={()=>setShowList(false)}>
-          <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Kisan Family Pro</h1>
-          <p className="text-xs text-muted-foreground">{videos.length} videos</p>
+  // Sub-screen: playlist/chapter list for one course (opens ONLY after See Content click)
+  if (showList) {
+    const course = courseInfo(showList);
+    const vs   = videosFor(showList);
+    const cats = [...new Set(vs.map(v=>v.category))];
+    const byCat = Object.fromEntries(cats.map(c=>[c,vs.filter(v=>v.category===c)]));
+    return (
+      <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
+        <div className="px-5 pt-10 pb-4 border-b border-border flex items-center gap-3">
+          <button onClick={()=>setShowList(null)}>
+            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">{course.title}</h1>
+            <p className="text-xs text-muted-foreground">{vs.length} videos</p>
+          </div>
         </div>
+        <div className="flex-1 overflow-y-auto pb-24">
+          {loading
+            ? <div className="flex flex-col gap-3 px-5 pt-4">{[1,2,3,4,5].map(i=><div key={i} className="h-20 bg-card rounded-xl animate-pulse"/>)}</div>
+            : cats.map(cat=>{
+                const cvs = byCat[cat];
+                return (
+                  <section key={cat} className="mb-2">
+                    <div className="px-5 pt-5 pb-2 flex items-center gap-2">
+                      <div className="w-1.5 h-4 rounded-full" style={{background:cvs[0]?.categoryColor||"#2E7D32"}}/>
+                      <p className="text-xs font-bold text-foreground">{cat}</p>
+                      <span className="text-[10px] text-muted-foreground ml-auto">{cvs.length} videos</span>
+                    </div>
+                    <div className="flex flex-col gap-2 px-5">{cvs.map(v=><VideoCard key={v.id} video={v} compact/>)}</div>
+                  </section>
+                );
+              })
+          }
+        </div>
+        <BottomNav/>
       </div>
-      <div className="flex-1 overflow-y-auto pb-24">
-        {loading
-          ? <div className="flex flex-col gap-3 px-5 pt-4">{[1,2,3,4,5].map(i=><div key={i} className="h-20 bg-card rounded-xl animate-pulse"/>)}</div>
-          : cats.map(cat=>{
-              const vs = byCat[cat];
-              return (
-                <section key={cat} className="mb-2">
-                  <div className="px-5 pt-5 pb-2 flex items-center gap-2">
-                    <div className="w-1.5 h-4 rounded-full" style={{background:vs[0]?.categoryColor||"#2E7D32"}}/>
-                    <p className="text-xs font-bold text-foreground">{cat}</p>
-                    <span className="text-[10px] text-muted-foreground ml-auto">{vs.length} videos</span>
-                  </div>
-                  <div className="flex flex-col gap-2 px-5">{vs.map(v=><VideoCard key={v.id} video={v} compact/>)}</div>
-                </section>
-              );
-            })
-        }
-      </div>
-      <BottomNav/>
-    </div>
-  );
+    );
+  }
 
-  // Main Courses tab: only ONE clean card visible
+  // Main Courses tab: one card per course
   return (
     <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
       <div className="px-5 pt-10 pb-4 border-b border-border">
@@ -875,51 +973,49 @@ function CoursesScreen() {
         <p className="text-xs text-muted-foreground mt-1">Premium Courses</p>
       </div>
       <div className="flex-1 overflow-y-auto pb-24 px-5 pt-6">
-
-        {/* Course Logo first, then Title, then See Content button */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-5">
-          <div className="bg-gradient-to-br from-green-900 to-green-700 p-6 flex flex-col items-center gap-4">
-            {/* Requirement #4: Course logo first */}
-            <PHLogo size={80}/>
-            {/* Requirement #4: Course title */}
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-white">Kisan Family</h2>
-              <p className="text-xs text-green-200 mt-1">Apple Farming Complete Course</p>
+        {COURSES.map(course=>{
+          const vs   = videosFor(course.id);
+          const cats = [...new Set(vs.map(v=>v.category))];
+          const owned = myCourseIds.includes(course.id);
+          return (
+            <div key={course.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm mb-5">
+              <div className={`p-6 flex flex-col items-center gap-4 bg-gradient-to-br ${owned?"from-green-900 to-green-700":"from-gray-700 to-gray-600"}`}>
+                <PHLogo size={80}/>
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-white">{course.title}</h2>
+                  <p className="text-xs text-green-200 mt-1">{course.tagline}</p>
+                </div>
+                <div className="flex gap-3 text-center">
+                  <div><p className="text-lg font-bold text-white">{vs.length}</p><p className="text-[10px] text-green-200">Videos</p></div>
+                  <div className="w-px bg-green-600"/>
+                  <div><p className="text-lg font-bold text-white">{cats.length}</p><p className="text-[10px] text-green-200">Categories</p></div>
+                  <div className="w-px bg-green-600"/>
+                  <div><p className="text-lg font-bold text-white">{owned?"Pro":"🔒"}</p><p className="text-[10px] text-green-200">{owned?"Level":"Locked"}</p></div>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {cats.map(c=>(
+                    <span key={c} className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full">{c}</span>
+                  ))}
+                </div>
+                {owned ? (
+                  <button onClick={()=>setShowList(course.id)}
+                    className="w-full bg-primary text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {t("seeContent")}
+                  </button>
+                ) : (
+                  <a href={courseWA(course, user?.email)} target="_blank" rel="noopener noreferrer"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    🔒 Course Kharidein (WhatsApp)
+                  </a>
+                )}
+              </div>
             </div>
-            <div className="flex gap-3 text-center">
-              <div><p className="text-lg font-bold text-white">{videos.length}</p><p className="text-[10px] text-green-200">Videos</p></div>
-              <div className="w-px bg-green-600"/>
-              <div><p className="text-lg font-bold text-white">{cats.length}</p><p className="text-[10px] text-green-200">Categories</p></div>
-              <div className="w-px bg-green-600"/>
-              <div><p className="text-lg font-bold text-white">Pro</p><p className="text-[10px] text-green-200">Level</p></div>
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="flex flex-wrap gap-2 mb-4">
-              {cats.map(c=>(
-                <span key={c} className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full">{c}</span>
-              ))}
-            </div>
-            {/* Requirement #4: See Content button - playlist loads ONLY after this click */}
-            <button onClick={()=>setShowList(true)}
-              className="w-full bg-primary text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              {t("seeContent")}
-            </button>
-          </div>
-        </div>
-
-        {/* Requirement #4: Coming Soon placeholder for future courses */}
-        <div className="bg-card border border-dashed border-border rounded-2xl p-6 flex flex-col items-center gap-3 opacity-60">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-            <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-foreground">New Course</p>
-            <span className="text-xs bg-orange-500 text-white px-3 py-1 rounded-full mt-2 inline-block">{t("comingSoon")} 🚀</span>
-          </div>
-        </div>
-
+          );
+        })}
       </div>
       <BottomNav/>
     </div>
@@ -1543,19 +1639,42 @@ function AdminStudents() {
   const [updating,setUpdating]=useState(null);
   useEffect(()=>{ getDocs(query(collection(db,"users"),orderBy("joinDate","desc"))).then(s=>setStudents(s.docs.map(d=>({id:d.id,...d.data()})))).catch(()=>{}).finally(()=>setLoading(false)); },[]);
   const toggle=async(uid,cur)=>{const next=cur==="approved"?"blocked":cur==="blocked"?"pending":"approved";setUpdating(uid);try{await updateDoc(doc(db,"users",uid),{accessStatus:next});setStudents(p=>p.map(s=>s.uid===uid?{...s,accessStatus:next}:s));}catch(_){}finally{setUpdating(null);}};
+  const toggleCourse=async(uid,cid,current)=>{
+    const has = current.includes(cid);
+    const next = has ? current.filter(c=>c!==cid) : [...current,cid];
+    setUpdating(uid+cid);
+    try{ await updateDoc(doc(db,"users",uid),{courses:next}); setStudents(p=>p.map(s=>s.uid===uid?{...s,courses:next}:s)); }
+    catch(_){} finally{ setUpdating(null); }
+  };
   const badge=s=>s==="approved"?"bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400":s==="blocked"?"bg-red-100 dark:bg-red-950 text-red-600":"bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400";
   return (
     <div className="p-5">
       <h2 className="text-lg font-bold text-foreground mb-5">Students</h2>
       {loading?<div className="flex flex-col gap-3">{[1,2,3,4].map(i=><div key={i} className="h-20 bg-card rounded-xl animate-pulse"/>)}</div>
       :students.length===0?<p className="text-sm text-muted-foreground text-center py-12">Abhi koi student nahi</p>
-      :<div className="flex flex-col gap-3">{students.map(s=>(
-        <div key={s.uid} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">{s.name?.slice(0,2).toUpperCase()||"??"}</div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-foreground truncate">{s.name}</p><p className="text-xs text-muted-foreground truncate">{s.email}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${badge(s.accessStatus)}`}>{s.accessStatus}</span></div>
-          <button disabled={updating===s.uid} onClick={()=>toggle(s.uid,s.accessStatus)} className="text-xs bg-secondary text-secondary-foreground border border-border rounded-lg px-3 py-1.5 disabled:opacity-60">{updating===s.uid?"...":s.accessStatus==="approved"?"Block":s.accessStatus==="blocked"?"Reset":"Approve"}</button>
+      :<div className="flex flex-col gap-3">{students.map(s=>{
+        const myCourses = Array.isArray(s.courses)&&s.courses.length>0 ? s.courses : [DEFAULT_COURSE];
+        return (
+        <div key={s.uid} className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">{s.name?.slice(0,2).toUpperCase()||"??"}</div>
+            <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-foreground truncate">{s.name}</p><p className="text-xs text-muted-foreground truncate">{s.email}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${badge(s.accessStatus)}`}>{s.accessStatus}</span></div>
+            <button disabled={updating===s.uid} onClick={()=>toggle(s.uid,s.accessStatus)} className="text-xs bg-secondary text-secondary-foreground border border-border rounded-lg px-3 py-1.5 disabled:opacity-60">{updating===s.uid?"...":s.accessStatus==="approved"?"Block":s.accessStatus==="blocked"?"Reset":"Approve"}</button>
+          </div>
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border flex-wrap">
+            <span className="text-[10px] text-muted-foreground">Courses:</span>
+            {COURSES.map(c=>{
+              const has = myCourses.includes(c.id);
+              return (
+                <button key={c.id} disabled={updating===s.uid+c.id} onClick={()=>toggleCourse(s.uid,c.id,myCourses)}
+                  className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors disabled:opacity-60 ${has?"bg-primary text-white border-primary":"bg-secondary text-secondary-foreground border-border"}`}>
+                  {has?"✓ ":""}{c.title}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      ))}</div>}
+      );})}</div>}
     </div>
   );
 }
@@ -1587,7 +1706,7 @@ function AdminApprovals() {
   );
 }
 
-const EMPTY_V={title:"",description:"",youtubeId:"",category:"",categoryColor:"#2E7D32",duration:"",tags:[],order:99,isNew:false,createdAt:""};
+const EMPTY_V={title:"",description:"",youtubeId:"",category:"",categoryColor:"#2E7D32",duration:"",tags:[],order:99,isNew:false,createdAt:"",courseId:DEFAULT_COURSE};
 function AdminVideos() {
   const [videos,setVideos]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -1614,6 +1733,17 @@ function AdminVideos() {
             ))}
             <div><label className="text-xs text-muted-foreground block mb-1">Description</label><textarea className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary resize-none" rows={2} value={editing.description||""} onChange={e=>setEditing(p=>({...p,description:e.target.value}))}/></div>
             <div><label className="text-xs text-muted-foreground block mb-1">Tags (comma separated)</label><input className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary" value={tags} onChange={e=>setTags(e.target.value)}/></div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Course *</label>
+              <div className="flex gap-2 flex-wrap">
+                {COURSES.map(c=>(
+                  <button key={c.id} onClick={()=>setEditing(p=>({...p,courseId:c.id}))}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${editing.courseId===c.id?"bg-primary text-white border-primary":"bg-secondary text-secondary-foreground border-border"}`}>
+                    {c.title}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-4">
               <div><label className="text-xs text-muted-foreground block mb-1">Order</label><input type="number" className="w-20 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none" value={editing.order||99} onChange={e=>setEditing(p=>({...p,order:Number(e.target.value)}))}/></div>
               <div><label className="text-xs text-muted-foreground block mb-1">Color</label><input type="color" value={editing.categoryColor||"#2E7D32"} onChange={e=>setEditing(p=>({...p,categoryColor:e.target.value}))} className="w-10 h-8 rounded border border-border cursor-pointer"/></div>
@@ -1628,9 +1758,9 @@ function AdminVideos() {
       :<div className="flex flex-col gap-3">{videos.map(v=>(
         <div key={v.id} className="bg-card border border-border rounded-xl p-3 flex gap-3">
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"><img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`} alt="" className="w-full h-full object-cover"/></div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground line-clamp-1">{v.title}</p><p className="text-xs text-muted-foreground">{v.category} · {v.duration}</p><p className="text-[10px] text-muted-foreground">Order: {v.order} · {fmtDate(v.createdAt)}</p></div>
+          <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground line-clamp-1">{v.title}</p><p className="text-xs text-muted-foreground">{v.category} · {v.duration}</p><p className="text-[10px] text-muted-foreground">Order: {v.order} · {fmtDate(v.createdAt)}</p><span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full mt-1 inline-block">{courseInfo(v.courseId||DEFAULT_COURSE).title}</span></div>
           <div className="flex gap-2 items-start flex-shrink-0">
-            <button onClick={()=>{setEditing({...v});setTags((v.tags||[]).join(", "));}} className="p-1.5 rounded-lg bg-secondary text-xs">✏️</button>
+            <button onClick={()=>{setEditing({...v, courseId:v.courseId||DEFAULT_COURSE});setTags((v.tags||[]).join(", "));}} className="p-1.5 rounded-lg bg-secondary text-xs">✏️</button>
             <button onClick={()=>del(v.id)} disabled={deleting===v.id} className="p-1.5 rounded-lg bg-red-100 dark:bg-red-950 text-xs disabled:opacity-60">🗑️</button>
           </div>
         </div>
