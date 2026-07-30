@@ -300,6 +300,14 @@ const userCourseIds = (user, isAdmin) => {
   if (Array.isArray(user?.courses) && user.courses.length>0) return user.courses;
   return [DEFAULT_COURSE]; // legacy fallback
 };
+// A video can belong to more than one course. Supports the older single
+// `courseId` field too, so videos added before this feature still work.
+const videoCourseIds = (v) => {
+  if (Array.isArray(v.courseIds) && v.courseIds.length>0) return v.courseIds;
+  if (v.courseId) return [v.courseId];
+  return [DEFAULT_COURSE];
+};
+const hasCourseAccess = (v, myCourseIds) => videoCourseIds(v).some(cid=>myCourseIds.includes(cid));
 const courseWA = (course, userEmail) => {
   const msg = `Namaste! 🌿\n\nMujhe *${course.title}* course ke baare mein jaankari chahiye aur main ise purchase karna chahta/chahti hoon.\n\nMera app email: ${userEmail||""}\n\n— Kisan Family Academy se`;
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
@@ -330,13 +338,31 @@ const WM_POS = [
 function BottomNav() {
   const { path, setPath } = useRouter();
   const { t } = useLang();
+  const [visible, setVisible] = useState(true);
+  const lastScroll = useRef(0);
+
+  // ── Auto-hide on scroll down, reappear on scroll up (works across any
+  // screen's own scroll container, using capture-phase so it catches
+  // scroll events from nested divs too, not just the window) ──
+  useEffect(()=>{
+    const onScroll = (e) => {
+      const top = e.target === document ? window.scrollY : (e.target.scrollTop ?? 0);
+      const delta = top - lastScroll.current;
+      if (Math.abs(delta) < 4) return;
+      setVisible(delta < 0 || top < 40);
+      lastScroll.current = top;
+    };
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  },[]);
+
   const tabs = [
     { label:t("home"),    route:"/home",    icon:(a)=><svg className={`w-5 h-5 ${a?"text-primary":"text-muted-foreground"}`} fill={a?"currentColor":"none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={a?0:1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> },
     { label:t("courses"), route:"/courses", icon:(a)=><svg className={`w-5 h-5 ${a?"text-primary":"text-muted-foreground"}`} fill={a?"currentColor":"none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={a?0:1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> },
     { label:t("profile"), route:"/profile", icon:(a)=><svg className={`w-5 h-5 ${a?"text-primary":"text-muted-foreground"}`} fill={a?"currentColor":"none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={a?0:1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> },
   ];
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[900px] bg-card border-t border-border flex z-40">
+    <nav className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[900px] bg-card/60 backdrop-blur-md border-t border-border/40 flex z-40 transition-transform duration-300 ease-out ${visible?"translate-y-0":"translate-y-full"}`}>
       {tabs.map(tab => {
         const active = path===tab.route;
         return (
@@ -422,9 +448,10 @@ function VideoCard({ video, compact=false, progress=null, locked=false, onLocked
 
 // ── Locked Course Modal (shown when a student taps a video from a
 // course they haven't purchased) ────────────────────────────────────
-function LockedCourseModal({ video, userEmail, onClose }) {
+function LockedCourseModal({ video, userEmail, myCourseIds=[], onClose }) {
   if (!video) return null;
-  const course = courseInfo(video.courseId || DEFAULT_COURSE);
+  const missingIds = videoCourseIds(video).filter(cid=>!myCourseIds.includes(cid));
+  const course = courseInfo(missingIds[0] || videoCourseIds(video)[0]);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
       <div className="w-full max-w-[420px] bg-card rounded-t-3xl sm:rounded-3xl p-6 flex flex-col items-center gap-4" onClick={e=>e.stopPropagation()}>
@@ -710,10 +737,12 @@ function HomeScreen() {
 
   const name = user?.name?.split(" ")[0]||"Farmer";
   const myCourseIds = userCourseIds(user, isAdmin);
-  const myVideos     = videos.filter(v=>myCourseIds.includes(v.courseId||DEFAULT_COURSE));
-  const lockedVideos = videos.filter(v=>!myCourseIds.includes(v.courseId||DEFAULT_COURSE));
+  const myVideos     = videos.filter(v=>hasCourseAccess(v,myCourseIds));
+  const lockedVideos = videos.filter(v=>!hasCourseAccess(v,myCourseIds));
+  // Group locked videos under the first course (from their course list) the student doesn't have yet
   const lockedByCourse = Object.fromEntries(
-    [...new Set(lockedVideos.map(v=>v.courseId||DEFAULT_COURSE))].map(cid=>[cid, lockedVideos.filter(v=>(v.courseId||DEFAULT_COURSE)===cid)])
+    [...new Set(lockedVideos.map(v=>videoCourseIds(v).find(cid=>!myCourseIds.includes(cid))||videoCourseIds(v)[0]))]
+      .map(cid=>[cid, lockedVideos.filter(v=>(videoCourseIds(v).find(c=>!myCourseIds.includes(c))||videoCourseIds(v)[0])===cid)])
   );
 
   const q    = search.trim();
@@ -899,7 +928,7 @@ function HomeScreen() {
           </>
         )}
       </div>
-      {lockedVideo && <LockedCourseModal video={lockedVideo} userEmail={user?.email} onClose={()=>setLockedVideo(null)}/>}
+      {lockedVideo && <LockedCourseModal video={lockedVideo} userEmail={user?.email} myCourseIds={myCourseIds} onClose={()=>setLockedVideo(null)}/>}
       <BottomNav/>
     </div>
   );
@@ -923,7 +952,7 @@ function CoursesScreen() {
   },[]);
 
   const myCourseIds = userCourseIds(user, isAdmin);
-  const videosFor = (cid) => videos.filter(v=>(v.courseId||DEFAULT_COURSE)===cid);
+  const videosFor = (cid) => videos.filter(v=>videoCourseIds(v).includes(cid));
 
   // Sub-screen: playlist/chapter list for one course (opens ONLY after See Content click)
   if (showList) {
@@ -1363,7 +1392,7 @@ function ProfileScreen() {
   useEffect(()=>{
     if (!user?.uid) return;
     getDocs(collection(db,"progress",user.uid,"videos")).then(s=>{const p={};s.docs.forEach(d=>{p[d.id]={videoId:d.id,...d.data()};});setProgress(p);}).catch(()=>{});
-    getDocs(query(collection(db,"questions"),where("userId","==",user.uid),orderBy("createdAt","desc"))).then(s=>setQuestions(s.docs.map(d=>({id:d.id,...d.data()})))).catch(()=>{});
+    getDocs(query(collection(db,"questions"),where("userId","==",user.uid))).then(s=>setQuestions(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)))).catch(()=>{});
     getDocs(query(collection(db,"certificates"),where("userId","==",user.uid))).then(s=>{if(!s.empty)setCert({id:s.docs[0].id,...s.docs[0].data()});}).catch(()=>{});
   },[user?.uid]);
 
@@ -1683,7 +1712,7 @@ function AdminApprovals() {
   const [pending,setPending]=useState([]);
   const [loading,setLoading]=useState(true);
   const [updating,setUpdating]=useState(null);
-  useEffect(()=>{ getDocs(query(collection(db,"users"),where("accessStatus","==","pending"),orderBy("joinDate","desc"))).then(s=>setPending(s.docs.map(d=>({id:d.id,...d.data()})))).catch(()=>{}).finally(()=>setLoading(false)); },[]);
+  useEffect(()=>{ getDocs(query(collection(db,"users"),orderBy("joinDate","desc"))).then(s=>setPending(s.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.accessStatus==="pending"))).catch(()=>{}).finally(()=>setLoading(false)); },[]);
   const update=async(uid,status)=>{setUpdating(uid);try{await updateDoc(doc(db,"users",uid),{accessStatus:status});setPending(p=>p.filter(s=>s.uid!==uid));}catch(_){}finally{setUpdating(null);}};
   return (
     <div className="p-5">
@@ -1706,7 +1735,7 @@ function AdminApprovals() {
   );
 }
 
-const EMPTY_V={title:"",description:"",youtubeId:"",category:"",categoryColor:"#2E7D32",duration:"",tags:[],order:99,isNew:false,createdAt:"",courseId:DEFAULT_COURSE};
+const EMPTY_V={title:"",description:"",youtubeId:"",category:"",categoryColor:"#2E7D32",duration:"",tags:[],order:99,isNew:false,createdAt:"",courseIds:[DEFAULT_COURSE]};
 function AdminVideos() {
   const [videos,setVideos]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -1734,14 +1763,21 @@ function AdminVideos() {
             <div><label className="text-xs text-muted-foreground block mb-1">Description</label><textarea className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary resize-none" rows={2} value={editing.description||""} onChange={e=>setEditing(p=>({...p,description:e.target.value}))}/></div>
             <div><label className="text-xs text-muted-foreground block mb-1">Tags (comma separated)</label><input className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary" value={tags} onChange={e=>setTags(e.target.value)}/></div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Course *</label>
+              <label className="text-xs text-muted-foreground block mb-1">Course(s) * — ek video ek se zyada courses mein bhi ho sakti hai</label>
               <div className="flex gap-2 flex-wrap">
-                {COURSES.map(c=>(
-                  <button key={c.id} onClick={()=>setEditing(p=>({...p,courseId:c.id}))}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${editing.courseId===c.id?"bg-primary text-white border-primary":"bg-secondary text-secondary-foreground border-border"}`}>
-                    {c.title}
-                  </button>
-                ))}
+                {COURSES.map(c=>{
+                  const selected = (editing.courseIds||[]).includes(c.id);
+                  return (
+                    <button key={c.id} onClick={()=>setEditing(p=>{
+                        const cur = p.courseIds||[];
+                        const next = selected ? cur.filter(x=>x!==c.id) : [...cur,c.id];
+                        return {...p, courseIds: next.length?next:[c.id]}; // keep at least one selected
+                      })}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${selected?"bg-primary text-white border-primary":"bg-secondary text-secondary-foreground border-border"}`}>
+                      {selected?"✓ ":""}{c.title}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -1758,9 +1794,9 @@ function AdminVideos() {
       :<div className="flex flex-col gap-3">{videos.map(v=>(
         <div key={v.id} className="bg-card border border-border rounded-xl p-3 flex gap-3">
           <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"><img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`} alt="" className="w-full h-full object-cover"/></div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground line-clamp-1">{v.title}</p><p className="text-xs text-muted-foreground">{v.category} · {v.duration}</p><p className="text-[10px] text-muted-foreground">Order: {v.order} · {fmtDate(v.createdAt)}</p><span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full mt-1 inline-block">{courseInfo(v.courseId||DEFAULT_COURSE).title}</span></div>
+          <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground line-clamp-1">{v.title}</p><p className="text-xs text-muted-foreground">{v.category} · {v.duration}</p><p className="text-[10px] text-muted-foreground">Order: {v.order} · {fmtDate(v.createdAt)}</p><div className="flex gap-1 mt-1 flex-wrap">{videoCourseIds(v).map(cid=><span key={cid} className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full inline-block">{courseInfo(cid).title}</span>)}</div></div>
           <div className="flex gap-2 items-start flex-shrink-0">
-            <button onClick={()=>{setEditing({...v, courseId:v.courseId||DEFAULT_COURSE});setTags((v.tags||[]).join(", "));}} className="p-1.5 rounded-lg bg-secondary text-xs">✏️</button>
+            <button onClick={()=>{setEditing({...v, courseIds:videoCourseIds(v)});setTags((v.tags||[]).join(", "));}} className="p-1.5 rounded-lg bg-secondary text-xs">✏️</button>
             <button onClick={()=>del(v.id)} disabled={deleting===v.id} className="p-1.5 rounded-lg bg-red-100 dark:bg-red-950 text-xs disabled:opacity-60">🗑️</button>
           </div>
         </div>
