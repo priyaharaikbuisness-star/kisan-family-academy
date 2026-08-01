@@ -27,6 +27,27 @@ const app = initializeApp({
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// ── YouTube IFrame Player API loader (loaded once, reused everywhere) ──
+// We use the real player API instead of a plain <iframe src=...> so we can
+// fully control playback (autoplay, play/pause) from OUR OWN transparent
+// overlay, and the user's tap never reaches YouTube's own iframe surface —
+// so tapping the video can never open the YouTube app or site.
+let ytApiPromise = null;
+function loadYouTubeAPI() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    const prevCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prevCallback?.(); resolve(window.YT); };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
 // ── Admin Emails ──────────────────────────────────────────────────
 const ADMIN_EMAILS = (
   import.meta.env.VITE_ADMIN_EMAILS ||
@@ -1068,7 +1089,56 @@ function VideoPlayerScreen({ videoId }) {
   const [watchPct, setWatchPct] = useState(0);
   const [wmIdx,    setWmIdx]    = useState(0);
   const [descOpen, setDescOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [tapIcon, setTapIcon] = useState(null); // "play" | "pause" | null, brief feedback flash
   const timerRef = useRef(null);
+  const playerRef = useRef(null);
+  const playerDivId = `yt-player-${videoId}`;
+
+  // ── Create the real YouTube player (controls hidden) and autoplay it.
+  // Our transparent overlay div (rendered below) sits above this and is
+  // the ONLY thing the user can actually tap — the underlying iframe never
+  // receives clicks, so the user can never reach YouTube's own UI/logo. ──
+  useEffect(()=>{
+    let destroyed = false;
+    let player = null;
+    loadYouTubeAPI().then(YT=>{
+      if (destroyed) return;
+      player = new YT.Player(playerDivId, {
+        host: "https://www.youtube-nocookie.com",
+        videoId: video?.youtubeId,
+        playerVars: { autoplay:1, controls:0, rel:0, modestbranding:1, playsinline:1, disablekb:1, fs:0 },
+        events: {
+          onReady: (e) => {
+            e.target.playVideo();
+            // Some mobile browsers block unmuted autoplay - if it's not
+            // actually playing a moment later, fall back to muted autoplay
+            // so playback never gets stuck; user's first tap can unmute.
+            setTimeout(()=>{
+              if (destroyed) return;
+              if (e.target.getPlayerState() !== 1) { e.target.mute(); e.target.playVideo(); }
+            }, 800);
+          },
+          onStateChange: (e) => setIsPlaying(e.data===1),
+        },
+      });
+      playerRef.current = player;
+    });
+    return () => {
+      destroyed = true;
+      try { player?.destroy?.(); } catch(_){}
+      playerRef.current = null;
+    };
+  },[video?.youtubeId]);
+
+  const handleShieldTap = () => {
+    const p = playerRef.current;
+    if (!p) return;
+    if (p.isMuted?.()) p.unMute(); // resolve any earlier autoplay-muted fallback on first tap
+    if (isPlaying) { p.pauseVideo(); setTapIcon("pause"); }
+    else { p.playVideo(); setTapIcon("play"); }
+    setTimeout(()=>setTapIcon(null), 500);
+  };
 
   useEffect(()=>{
     Promise.all([
@@ -1135,9 +1205,22 @@ function VideoPlayerScreen({ videoId }) {
     <div className="w-full max-w-[900px] mx-auto min-h-screen bg-background flex flex-col">
       {/* Video Player on Top (Requirement #9) */}
       <div className="relative bg-black w-full" style={{paddingTop:"56.25%"}}>
-        <iframe src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}?rel=0&modestbranding=1`}
-          title={video.title} className="absolute inset-0 w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen/>
+        <div id={playerDivId} className="absolute inset-0 w-full h-full pointer-events-none"/>
+        {/* Transparent shield: the ONLY tappable surface over the video.
+            Taps here control play/pause via the API - they never reach
+            the underlying YouTube iframe, so the user can never open
+            YouTube's own UI, logo link, or app from this screen. */}
+        <div className="absolute inset-0 z-[5]" onClick={handleShieldTap}/>
+        {tapIcon && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[6]">
+            <div className="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center animate-pulse">
+              {tapIcon==="play"
+                ? <svg className="w-7 h-7 text-white ml-1" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                : <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+              }
+            </div>
+          </div>
+        )}
         {/* Floating watermark */}
         <div className="absolute pointer-events-none select-none" style={{
           top:wm.top, left:wm.left, transition:"all 1.5s ease", zIndex:10,
